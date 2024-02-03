@@ -1,9 +1,3 @@
-// ------------------------------------------------------
-// Programowanie grafiki 3D w OpenGL / UG
-// ------------------------------------------------------
-// Przyklad implementacji klasy CSceneObject
-// obslugujacej obiekty CMesh wraz z koliderem CCollider
-// ------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
 #include <GL/glew.h>
@@ -20,46 +14,31 @@
 #include "utilities.hpp"
 #include "text-ft.hpp"
 
-// Klasa CColider i pochodne
 #include "collider.hpp"
 
-// Klasa CMesh i CSceneObject
-// dziedziczaca po CMesh
 #include "mesh.hpp"
 #include "missle.hpp"
 
-// Klasa CPlayer
 #include "ground.hpp"
 #include "player.hpp"
-
 
 glm::mat4x4 matProj;
 glm::mat4x4 matView;
 glm::mat4x4 matModel = glm::mat4(1.0);
 
+int windowWidth = 500;
+int windowHeight = 500;
 
 const int KEY_COUNT = 256;
 bool keyStates[KEY_COUNT];
 
-
-// potok
 GLuint idProgram;
 
-// ---------------------------------------
-// NOWE: Obecnie mamy 3 rodzaje obiektow:
-// ---------------------------------------
-
-// A. Obiekty bez testu kolizji (zwykle meshe)
 CGround ground;
 
-// B. Obiekty z obsluga testu kolizji (dziedzicza
-// po CMesh ale maja dodatkowa skladowa CColider)
 std::vector<CSceneObject> stones;
 std::vector<CSceneObject> aliens;
 
-
-// C. Obiekt postaci, ktory udostepnia metody
-// poruszania sie po scenie wraz z testem kolizji
 CPlayer myPlayer;
 
 CMissle missle;
@@ -70,44 +49,91 @@ int currentTime = 0, previousTime = 0;
 
 int score;
 
-// ---------------------------------------
+GLuint minimapFBO, minimapTexture, minimapShaderProgram;
+int minimapWidth = 100; // Rozmiar minimapy
+int minimapHeight = 100;
+unsigned int minimapVBO, minimapVAO, minimapEBO;
+float vertices[] = {
+    // pozycje       // tekstury
+    1.0f,  1.0f,     1.0f, 1.0f, // górny prawy róg
+    1.0f,  0.6f,     1.0f, 0.0f, // dolny prawy róg
+    0.6f,  0.6f,     0.0f, 0.0f, // dolny lewy róg
+    0.6f,  1.0f,     0.0f, 1.0f  // górny lewy róg
+};
+
+unsigned int indices[] = {
+    0, 1, 3, // pierwszy trójkąt
+    1, 2, 3  // drugi trójkąt
+};
+
+void RenderMinimap() {
+	glBindFramebuffer(GL_FRAMEBUFFER, minimapFBO);
+	glViewport(0, 0, minimapWidth, minimapHeight);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	glm::vec3 cameraPos = myPlayer.Position;
+	glm::vec3 minimapCameraPos = cameraPos + glm::vec3(0, 10, 0);
+	glm::vec3 target = cameraPos;
+
+	matView = glm::lookAt(minimapCameraPos, target, glm::vec3(0, 0, -1));
+
+	matModel = glm::mat4x4(1.0);
+	glUseProgram(idProgram);
+	glUniformMatrix4fv(glGetUniformLocation(idProgram, "matProj"), 1, GL_FALSE, glm::value_ptr(matProj));
+	glUniformMatrix4fv(glGetUniformLocation(idProgram, "matView"), 1, GL_FALSE, glm::value_ptr(matView));
+	ground.Draw();
+	for (auto& stone : stones) {
+		stone.Draw();
+	}
+	for (auto& alien : aliens) {
+		alien.Draw();
+	}
+	myPlayer.Draw();
+	missle.Draw();
+	glUseProgram(0);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void DisplayMinimap() {
+	glUseProgram(minimapShaderProgram);
+	glBindVertexArray(minimapVAO);
+	glBindTexture(GL_TEXTURE_2D, minimapTexture);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+	glBindVertexArray(0);
+	glUseProgram(0);
+}
+
 void DisplayScene()
 {
 	__CHECK_FOR_ERRORS
 
-	// Obliczanie macierzy widoku
+	RenderMinimap();
+	glViewport(0, 0, windowWidth, windowHeight);
 	matView = UpdateViewMatrix(myPlayer.Position, myPlayer.Direction);
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-
 	matModel = glm::mat4x4( 1.0 );
-
 
     glUseProgram( idProgram );
 
-		// Wyslanie macierzy rzutowania
-		glUniformMatrix4fv( glGetUniformLocation( idProgram, "matProj" ), 1, GL_FALSE, glm::value_ptr(matProj) );
-		glUniformMatrix4fv( glGetUniformLocation( idProgram, "matView" ), 1, GL_FALSE, glm::value_ptr(matView) );
+	glUniformMatrix4fv( glGetUniformLocation( idProgram, "matProj" ), 1, GL_FALSE, glm::value_ptr(matProj) );
+	glUniformMatrix4fv( glGetUniformLocation( idProgram, "matView" ), 1, GL_FALSE, glm::value_ptr(matView) );
 
+	ground.Draw();
 
-		// GROUND
-		ground.Draw();
+	for(auto& stone : stones)
+	{
+		stone.Draw();
+	}
+	for(auto& alien : aliens)
+	{
+		alien.Draw();
+	}
 
-		// STONE
-		for(auto& stone : stones)
-		{
-			stone.Draw();
-		}
-		for(auto& alien : aliens)
-		{
-			alien.Draw();
-		}
+	myPlayer.Draw();
 
-		// Rendering postaci, ktora sie poruszamy
-		myPlayer.Draw();
-
-		missle.Draw();
-
+	missle.Draw();
 
     glUseProgram( 0 );
 
@@ -130,43 +156,66 @@ void DisplayScene()
         }
     }
 
+	DisplayMinimap();
 	glutSwapBuffers();
 }
 
+void InitializeMinimap() {
+	minimapShaderProgram = glCreateProgram();
+	glAttachShader(minimapShaderProgram, LoadShader(GL_VERTEX_SHADER, "minimap-vertex.glsl"));
+	glAttachShader(minimapShaderProgram, LoadShader(GL_FRAGMENT_SHADER, "minimap-fragment.glsl"));
+	LinkAndValidateProgram(minimapShaderProgram);
 
+	glGenFramebuffers(1, &minimapFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, minimapFBO);
 
-// ---------------------------------------------------
+	glGenTextures(1, &minimapTexture);
+	glBindTexture(GL_TEXTURE_2D, minimapTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, minimapWidth, minimapHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, minimapTexture, 0);
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		printf("Framebuffer not complete!\n");
+	}
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	glGenVertexArrays(1, &minimapVAO);
+	glGenBuffers(1, &minimapVBO);
+	glGenBuffers(1, &minimapEBO);
+
+	glBindVertexArray(minimapVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, minimapVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, minimapEBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+	glEnableVertexAttribArray(1);
+}
+
 void Initialize()
 {
 	InitText("arial.ttf", 16);
-	// Tylko raz w programie (na potrzeby tekstur)
 	stbi_set_flip_vertically_on_load(true);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-	// ustawienia openGL
 	glEnable( GL_DEPTH_TEST );
 	glClearColor( 0.5f, 0.5f, 0.5f, 1.0f );
 
-
-	// Ustawienie domyslnego odsuniecia kamery od polozenia (0,0,0)
 	CameraTranslate_x = 0.0;
 	CameraTranslate_y = 0.0;
 	CameraTranslate_z = -8.0;
 
-
-	// potok
 	idProgram = glCreateProgram();
 	glAttachShader( idProgram, LoadShader(GL_VERTEX_SHADER, "vertex.glsl"));
 	glAttachShader( idProgram, LoadShader(GL_FRAGMENT_SHADER, "fragment.glsl"));
 	LinkAndValidateProgram( idProgram );
 
-
-
-	// A. Inicjalizacja obiektow bez colliderow
-	// ground.Init("assets/scene-large.obj", "assets/chess.jpg");
 	ground.Init();
 
-	// B. Inicjalizacja obiektu z koliderem
 	int numberOfStones = 1; 
 	int numberOfAliens = 1;
     for(int i = 0; i < numberOfStones; ++i)
@@ -197,22 +246,21 @@ void Initialize()
 		aliens.push_back(alien);
 	}
 
-    // C. Inicjalizacja playera
     myPlayer.Init("assets/ufo.obj", "assets/ufo.jpg", &ground);
 	myPlayer.Collider = new CSphereCollider(&myPlayer.Position, 0.7f);
 
-	// D. Inicjalizacja pocisku
 	missle.Init("assets/sphere.obj", "assets/missle.jpg");
 	missle.Collider = new CSphereCollider(&missle.Position, 0.5f);
 
-
-
+	InitializeMinimap();
 }
 
 
 // ---------------------------------------
 void Reshape( int width, int height )
 {
+	windowWidth = width;
+	windowHeight = height;
 	glViewport( 0, 0, width, height );
 	matProj = glm::perspectiveFov(glm::radians(60.0f), (float)width, (float)height, 0.1f, 100.f );
 }
@@ -246,13 +294,11 @@ void KeyboardUp(unsigned char key, int x, int y) {
 	
 }
 
-// --------------------------------------------------------------
 void Keyboard( unsigned char key, int x, int y )
 {
 	keyStates[key] = true;
 }
 
-// ---------------------------------------------------
 void Animation(int frame)
 {
 	++frame;
@@ -302,19 +348,15 @@ void Animation(int frame)
 	glutPostRedisplay();
 }
 
-
-// ---------------------------------------------------
 int main( int argc, char *argv[] )
 {
-	// GLUT
 	glutInit( &argc, argv );
 	glutInitDisplayMode( GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH );
 	glutInitContextVersion( 3, 2 );
 	glutInitContextProfile( GLUT_CORE_PROFILE );
-	glutInitWindowSize( 500, 500 );
+	glutInitWindowSize( windowWidth, windowHeight );
 	glutCreateWindow( "OpenGL" );
 
-	// GLEW
 	glewExperimental = GL_TRUE;
 	GLenum err = glewInit();
 	if( GLEW_OK != err )
@@ -323,15 +365,14 @@ int main( int argc, char *argv[] )
 		exit(1);
 	}
 
-	// OpenGL
 	if( !GLEW_VERSION_3_2 )
 	{
 		printf("Brak OpenGL 3.2!\n");
 		exit(1);
 	}
 
-
 	Initialize();
+
 	glutDisplayFunc( DisplayScene );
 	glutReshapeFunc( Reshape );
 	glutMouseFunc( MouseButton );
@@ -343,7 +384,6 @@ int main( int argc, char *argv[] )
 	glutTimerFunc(1000/60, Animation, 0);
 
 	glutMainLoop();
-
 
 	exit(0);
 }
