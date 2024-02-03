@@ -6,7 +6,8 @@ class CMesh
 
 public:
 
-
+	GLuint idVAO;
+	GLuint idTexture;
 
 	std::vector<glm::vec3> OBJ_vertices;
 	std::vector<glm::vec3> OBJ_normals;
@@ -79,6 +80,7 @@ public:
 		glBindTexture(GL_TEXTURE_2D, idTexture);
 
         glBindVertexArray( idVAO );
+		glDrawArrays(GL_TRIANGLES, 0, OBJ_vertices.size());
         glBindVertexArray( 0 );
     }
 
