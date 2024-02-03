@@ -40,6 +40,8 @@ CGround ground;
 std::vector<CSceneObject> stones;
 std::vector<CSceneObject> aliens;
 
+CMesh meteor;
+
 CPlayer myPlayer;
 
 CMissle missle;
@@ -55,16 +57,15 @@ int minimapWidth = 100; // Rozmiar minimapy
 int minimapHeight = 100;
 unsigned int minimapVBO, minimapVAO, minimapEBO;
 float vertices[] = {
-    // pozycje       // tekstury
-    1.0f,  1.0f,     1.0f, 1.0f, // górny prawy róg
-    1.0f,  0.6f,     1.0f, 0.0f, // dolny prawy róg
-    0.6f,  0.6f,     0.0f, 0.0f, // dolny lewy róg
-    0.6f,  1.0f,     0.0f, 1.0f  // górny lewy róg
+    1.0f,  1.0f,     1.0f, 1.0f, 
+    1.0f,  0.6f,     1.0f, 0.0f, 
+    0.6f,  0.6f,     0.0f, 0.0f, 
+    0.6f,  1.0f,     0.0f, 1.0f 
 };
 
 unsigned int indices[] = {
-    0, 1, 3, // pierwszy trójkąt
-    1, 2, 3  // drugi trójkąt
+    0, 1, 3, 
+    1, 2, 3  
 };
 
 void RenderMinimap() {
@@ -120,7 +121,7 @@ void DisplayScene()
 
 	glUniformMatrix4fv( glGetUniformLocation( idProgram, "matProj" ), 1, GL_FALSE, glm::value_ptr(matProj) );
 	glUniformMatrix4fv( glGetUniformLocation( idProgram, "matView" ), 1, GL_FALSE, glm::value_ptr(matView) );
-
+	
 	ground.Draw();
 
 	for(auto& stone : stones)
@@ -139,6 +140,8 @@ void DisplayScene()
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, SkyBox_Texture);
 	glUniform1i(glGetUniformLocation(idProgram, "tex_skybox"), 1);
+
+	meteor.Draw();
 
     glUseProgram( 0 );
 
@@ -262,7 +265,11 @@ void Initialize()
 
 	InitializeMinimap();
 	CreateSkyBox();
-}
+
+	__CHECK_FOR_ERRORS
+	meteor.Init("assets/meteor.obj", "assets/rock.jpg");
+
+	}
 
 
 // ---------------------------------------

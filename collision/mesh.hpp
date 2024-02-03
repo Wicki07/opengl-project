@@ -1,20 +1,12 @@
 #ifndef __CMESH
 #define __CMESH
 
-// ----------------------------------------------
-// Przyklad implementacji klasy do obslugi
-// obiektow 3D renderowanych w OpenGL
-// ----------------------------------------------
-
 class CMesh
 {
 
 public:
 
 
-	// potok openGL
-    GLuint idVAO;	// identyfikator VAO
-    GLuint idTexture; // identyfikator tekstury
 
 	std::vector<glm::vec3> OBJ_vertices;
 	std::vector<glm::vec3> OBJ_normals;
@@ -23,20 +15,16 @@ public:
 	bool isAlive = true;
 	bool isAlien = false;
 
-	float rotationAngle = 0.0f; // Aktualny kąt obrotu
+	float rotationAngle = 0.0f;
     float rotationSpeed = 0.5f; 
     float currentBounce = 0.0f;
 
-    // macierz modelu (do renderingu)
     glm::mat4x4 matModel = glm::mat4(1.0);
 
 
-    // inicjalizacja (obecnie tylko to co jest
-	// potrzebne do renderingu
     void Init(const char *_obj_file, const char *_tex_file, bool _isAlien = false)
     {
 
-		// OBJ
 		if (!loadOBJ(_obj_file, OBJ_vertices, OBJ_uvs, OBJ_normals))
 		{
 			printf("OBJ error!\n");
@@ -57,7 +45,6 @@ public:
 		glEnableVertexAttribArray( 1 );
 		glBindVertexArray( 0 );
 
-		// Tekstura
 		int tex_width, tex_height, tex_n;
 		unsigned char *tex_data;
 		tex_data = stbi_load(_tex_file, &tex_width, &tex_height, &tex_n, 0);
@@ -79,28 +66,32 @@ public:
 
     }
 
-    // rendering na scenie
     void Draw()
     {
 		if (!isAlive) return;
 		GLint idProgram;
 		glGetIntegerv(GL_CURRENT_PROGRAM, &idProgram);
 
-		// wyslanie macierzy modelu
         glUniformMatrix4fv( glGetUniformLocation( idProgram, "matModel" ), 1, GL_FALSE, glm::value_ptr(matModel) );
 
-		// aktywacja tekstury
 		glActiveTexture(GL_TEXTURE0);
 		glUniform1i(glGetUniformLocation(idProgram, "tex0"), 0);
 		glBindTexture(GL_TEXTURE_2D, idTexture);
 
-        // rendering
         glBindVertexArray( idVAO );
-        glDrawArrays( GL_TRIANGLES, 0, OBJ_vertices.size() );
+       if (isMulti) {
+            for(int i = 0; i < 50; i++) {
+				glm::mat4 transform = glm::mat4(1.0f);
+				transform = glm::translate(transform, glm::vec3((float) i, 0.0f, 0.0f));
+				glUniformMatrix4fv( glGetUniformLocation( idProgram, "matModel" ), 1, GL_FALSE, glm::value_ptr(transform) );
+				glDrawArraysInstanced(GL_TRIANGLES, 0, OBJ_vertices.size(), instanceTransforms.size());
+			}
+        } else {
+            glDrawArrays(GL_TRIANGLES, 0, OBJ_vertices.size());
+        }
         glBindVertexArray( 0 );
     }
 
-	// zniszczenie obiektu
 	void Destroy()
 	{
 		glDeleteVertexArrays(1, &idVAO);
@@ -108,37 +99,33 @@ public:
 		isAlive = false;
 	}
 
-	// ------------------------------------------
-	// animacja obiektu
-	// ------------------------------------------
+	glm::vec3 CalculatePositionForInstance(int i)
+	{
+		// Implement this
+		return glm::vec3((float) i, 0.0f, 0.0f);
+	}
 
+	float CalculateRotationForInstance(int i)
+	{
+		// Implement this
+		return 0.0f;
+	}
 
+	glm::vec3 CalculateScaleForInstance(int i)
+	{
+		// Implement this
+		return glm::vec3(1.0f, 1.0f, 1.0f);
+	}
 
 };
-
-// ----------------------------------------------
-// Przyklad nowej klasy do obslugi obiektow
-// ktore dodatkowo udostepniaja obsluge testu
-// kolizji
-// ----------------------------------------------
-// UWAGA! To tylko propozycja
-// ----------------------------------------------
 
 class CSceneObject : public CMesh
 {
 public:
 
-	// Dodatkowe skladowe wzgledem CMesh
-
-	// ------------------------------------------
-	// NOWE: Collider do testu kolizji
-	// ------------------------------------------
 	CCollider *Collider = NULL;
 	glm::vec3 Position;
 
-	// ------------------------------------------
-	// NOWE: Ustawienie pozycji obiektu na scenie
-	// ------------------------------------------
 	void SetPosition(glm::vec3 _pos)
 	{
 		this->Position = _pos;
@@ -156,8 +143,6 @@ public:
 		else 
 			currentBounce -= 0.01f;
 	
-
-        // Uwzględnienie efektu odbijania w macierzy modelu
         matModel = glm::translate(glm::mat4(1.0), glm::vec3(0.0f, currentBounce, 0.0f));
 		
 		this->SetPosition(glm::vec3(matModel[3]));
