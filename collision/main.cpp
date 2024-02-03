@@ -21,6 +21,7 @@
 
 #include "ground.hpp"
 #include "player.hpp"
+#include "skybox.hpp"
 
 glm::mat4x4 matProj;
 glm::mat4x4 matView;
@@ -135,6 +136,10 @@ void DisplayScene()
 
 	missle.Draw();
 
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, SkyBox_Texture);
+	glUniform1i(glGetUniformLocation(idProgram, "tex_skybox"), 1);
+
     glUseProgram( 0 );
 
 	char fpsTxt[255];
@@ -157,6 +162,9 @@ void DisplayScene()
     }
 
 	DisplayMinimap();
+	
+	DrawSkyBox(matProj, matView);
+
 	glutSwapBuffers();
 }
 
@@ -253,6 +261,7 @@ void Initialize()
 	missle.Collider = new CSphereCollider(&missle.Position, 0.5f);
 
 	InitializeMinimap();
+	CreateSkyBox();
 }
 
 
