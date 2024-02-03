@@ -79,16 +79,6 @@ public:
 		glBindTexture(GL_TEXTURE_2D, idTexture);
 
         glBindVertexArray( idVAO );
-       if (isMulti) {
-            for(int i = 0; i < 50; i++) {
-				glm::mat4 transform = glm::mat4(1.0f);
-				transform = glm::translate(transform, glm::vec3((float) i, 0.0f, 0.0f));
-				glUniformMatrix4fv( glGetUniformLocation( idProgram, "matModel" ), 1, GL_FALSE, glm::value_ptr(transform) );
-				glDrawArraysInstanced(GL_TRIANGLES, 0, OBJ_vertices.size(), instanceTransforms.size());
-			}
-        } else {
-            glDrawArrays(GL_TRIANGLES, 0, OBJ_vertices.size());
-        }
         glBindVertexArray( 0 );
     }
 
@@ -97,24 +87,6 @@ public:
 		glDeleteVertexArrays(1, &idVAO);
 		glDeleteTextures(1, &idTexture);
 		isAlive = false;
-	}
-
-	glm::vec3 CalculatePositionForInstance(int i)
-	{
-		// Implement this
-		return glm::vec3((float) i, 0.0f, 0.0f);
-	}
-
-	float CalculateRotationForInstance(int i)
-	{
-		// Implement this
-		return 0.0f;
-	}
-
-	glm::vec3 CalculateScaleForInstance(int i)
-	{
-		// Implement this
-		return glm::vec3(1.0f, 1.0f, 1.0f);
 	}
 
 };
