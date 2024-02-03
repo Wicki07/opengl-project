@@ -1,0 +1,68 @@
+// ----------------------------------------
+// Obsluga klasy CCamera
+// ----------------------------------------
+
+// Przyklad uzycia dla kamery swobodnej
+// Kolejne kroki:
+
+
+// 1. Dodanie pliku naglowkowego oraz stworzenie obiektu
+// klasy CFreeCamera (pochodna klasy CCamera)
+
+#include "camera.hpp"
+CFreeCamera myCamera;
+
+// 2. Inicjalizacja w Initialize()
+// obecnie domyslne ustawienia obiektu sa ustawiane 
+// w domyslnym konstruktorze klasy CCamera, ale dobrym
+// pomyslem jest uzupelnienie metody Init() w klasie CFreeCamera
+
+myCamera.Init();
+
+
+// 3. W funkcji Reshape() nalezy zaktualizowac macierz
+// rzutowania metoda UpdatePerspective()
+
+myCamera.UpdatePerspective();
+
+// 4. Przeslanie w funkcji DisplayScene() do potoku 
+// macierzy matProj/matView wykorzystujac metode SendPV()
+
+myCamera.SendPV(idProgram);
+
+// lub
+
+myCamera.SendPV(idProgram, "nazwaMacierzyProj", "nazwaMacierzyView");
+
+// 5. Skorzystanie z metody CFreeCamera::Rotate() do zmiany
+// orientacji kamery w funkcji MouseMotion()
+
+void MouseMotion( int x, int y )
+{
+	if( _mouse_buttonState == GLUT_DOWN )
+	{
+		float dy = 2*(x - _mouse_buttonX)/(float)glutGet( GLUT_WINDOW_WIDTH );
+		float dx = 2*(y - _mouse_buttonY)/(float)glutGet( GLUT_WINDOW_HEIGHT );
+
+		_mouse_buttonX = x;
+		_mouse_buttonY = y;
+
+		myCamera.Rotate(dx, dy);
+	}
+}
+
+// 6. Skorzystanie z metody CFreeCamera::Move() do zmiany
+// polozenia kamery w funkcji Keyboard() lub SpecialKeys()
+
+...
+	case 'w':
+		myCamera.Move(0.1);
+		break;
+		
+	case 's':
+		myCamera.Move(-0.1);
+		break;
+...
+
+
+
