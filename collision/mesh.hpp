@@ -15,6 +15,7 @@ public:
 
 	bool isAlive = true;
 	bool isAlien = false;
+	bool isMulti = false;
 
 	float rotationAngle = 0.0f;
     float rotationSpeed = 0.5f; 
@@ -22,8 +23,15 @@ public:
 
     glm::mat4x4 matModel = glm::mat4(1.0);
 
+	const int NumberofInstances = 100;
 
-    void Init(const char *_obj_file, const char *_tex_file, bool _isAlien = false)
+	std::vector<glm::mat4x4> matModelVec;
+	std::vector<glm::vec3> modelsOriginPos;
+
+	float xShift = 0.0f;
+
+
+    void Init(const char *_obj_file, const char *_tex_file, bool _isAlien = false, bool _isMulti = false)
     {
 
 		if (!loadOBJ(_obj_file, OBJ_vertices, OBJ_uvs, OBJ_normals))
@@ -64,6 +72,53 @@ public:
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		isAlien = _isAlien;
+		if (_isMulti) {
+			isMulti = true;
+			for (int i = 0; i < NumberofInstances; i++)
+			{
+				float x = (rand() % 16000 / 100.0f) - 80;
+				float z = (rand() % 16000 / 100.0f) - 80;
+				float y = (rand() % 16000 / 100.0f);
+				float scale = (rand() % 50) / 100.0f + 0.1f;
+
+				matModelVec.push_back(glm::mat4x4(1.0));
+				modelsOriginPos.push_back(glm::vec3(x, y, z));
+				matModelVec[i] = glm::translate(matModelVec[i], glm::vec3(x, y, z));
+				matModelVec[i] = glm::scale(matModelVec[i], glm::vec3(scale, scale, scale));
+			}
+
+			glBindVertexArray( idVAO );
+			GLuint vInstances;
+			glGenBuffers(1, &vInstances);
+			glBindBuffer(GL_ARRAY_BUFFER, vInstances);
+			glBufferData(GL_ARRAY_BUFFER, NumberofInstances * sizeof(glm::mat4), &matModelVec[0], GL_STATIC_DRAW);
+
+			glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)0);
+			glEnableVertexAttribArray(3);
+			glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(sizeof(glm::vec4)));
+			glEnableVertexAttribArray(4);
+			glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(2 * sizeof(glm::vec4)));
+			glEnableVertexAttribArray(5);
+			glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(3 * sizeof(glm::vec4)));
+			glEnableVertexAttribArray(6);
+
+			glVertexAttribDivisor(3, 1);
+			glVertexAttribDivisor(4, 1);
+			glVertexAttribDivisor(5, 1);
+			glVertexAttribDivisor(6, 1);
+
+			GLuint vPosBuffer;
+			glGenBuffers(1, &vPosBuffer);
+			glBindBuffer(GL_ARRAY_BUFFER, vPosBuffer);
+			glBufferData(GL_ARRAY_BUFFER, modelsOriginPos.size() * sizeof(glm::vec3), &modelsOriginPos[0], GL_STATIC_DRAW);
+			glVertexAttribPointer(7, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+			glEnableVertexAttribArray(7);
+
+			glVertexAttribDivisor(7, 1);
+
+		} 
+
+		
 
     }
 
@@ -78,10 +133,18 @@ public:
 		glActiveTexture(GL_TEXTURE0);
 		glUniform1i(glGetUniformLocation(idProgram, "tex0"), 0);
 		glBindTexture(GL_TEXTURE_2D, idTexture);
-
+		__CHECK_FOR_ERRORS
         glBindVertexArray( idVAO );
-		glDrawArrays(GL_TRIANGLES, 0, OBJ_vertices.size());
-        glBindVertexArray( 0 );
+		if (isMulti) {
+			glDrawArraysInstanced(GL_TRIANGLES, 0, OBJ_vertices.size(), NumberofInstances);
+			glUniform1f(glGetUniformLocation(idProgram, "xShift"), xShift);
+			xShift += 1.0f;
+			__CHECK_FOR_ERRORS
+		} else {
+			glDrawArrays(GL_TRIANGLES, 0, OBJ_vertices.size());
+		}
+		glBindVertexArray( 0 );
+	
     }
 
 	void Destroy()
@@ -117,7 +180,7 @@ public:
 		else 
 			currentBounce -= 0.01f;
 	
-        matModel = glm::translate(glm::mat4(1.0), glm::vec3(0.0f, currentBounce, 0.0f));
+        matModel = glm::translate(glm::mat4(1.0), glm::vec3(this->Position.x, currentBounce, this->Position.z));
 		
 		this->SetPosition(glm::vec3(matModel[3]));
 

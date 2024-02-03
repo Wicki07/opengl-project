@@ -21,10 +21,6 @@ public:
 	// wektor orientacji (UWAGA! wyliczany z Angle)
 	glm::vec3 Direction = glm::vec3(1.0, 0.0, 0.0);
 
-	// wskaznik do obiektu podloza
-	// TO_DO: uwzglednic CGround
-	// CGround *myGround = NULL;
-
 	// do renderingu wykorzystujemy klase CMesh
 	CMesh Mesh;
 	CGround *myGround = NULL;
@@ -42,12 +38,6 @@ public:
 	void Init(const char *_obj_file, const char *_tex_file, CGround *ground)
 	{
 
-
-		// ----------------------------------
-		// TO_DO: Uzupelnij wedle uznania
-		// Najlepiej aby wykorzystac klase CMesh w tym miejscu
-		// ----------------------------------
-
 		Mesh.Init(_obj_file, _tex_file);
 
 		myGround = ground;
@@ -62,21 +52,13 @@ public:
 	void Draw()
 	{
 
-
-		// TO_DO: a moze wykorzystac metode Draw() z klasy CMesh?
 		Mesh.Draw();
 	}
  
 
-	// Obliczenie wysokosci nad ziemia
 	void Update()
 	{
-		// TO_DO: Wykorzystaj klase CGround i zaktualizuj
-		// wspolrzedna Y obiektu zgodnie z podlozem
-
-		// ....
-
-		// TO_DO: nastepnie wylicz nowa macierz modelu i macierz normalna
+		
 		Mesh.matModel = glm::translate(glm::mat4(1.0), Position);
 		Mesh.matModel = glm::rotate(Mesh.matModel, Angle, glm::vec3(0.0, 1.0, 0.0));
 	}
@@ -90,14 +72,6 @@ public:
 		Update();
 	}
 
-	// zmiana polozenia na scenie bez testu kolizji
-	// void Move(float val)
-	// {
-	// 	Position += Direction * val;
-
-	// 	// aktualizacja
-	// 	Update();
-	// }
 	
 	void Jump(float val)
 	{
@@ -118,19 +92,11 @@ public:
 		// aktualizujemy polozenie
 		Position += Direction * val;
 		float y =  myGround->getAltitute(glm::vec2(Position.x, Position.z));
-		float _y = myGround->getAltitute(glm::vec2(Position.x, Position.z + 6.0f));
 		Position.y = y;
 		if (y == 9999999.0) {
 			Position = oldPosition;
 			return;	
 		}
-		float cameraY = Position.y + 2.0f;
-		if(cameraY < _y) {
-			cameraY = _y + 1.0f;
-		}
-		CameraTranslate_x = Position.x;
-		CameraTranslate_y = cameraY; 
-		CameraTranslate_z = Position.z + 6.0f;
 		
 		bool isColliding = false;
 		glm::vec3 objPosition;
@@ -149,7 +115,6 @@ public:
 			glm::vec3 newDirection = glm::normalize(Direction + directionToObjectToPlayer);
 
 			Position += newDirection * val;
-			return;
 
 		}
 		// aktualizacja

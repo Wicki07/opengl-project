@@ -30,12 +30,15 @@ int _mouse_buttonY;
 // --------------------------------------------------------------
 glm::mat4 UpdateViewMatrix(glm::vec3 playerPosition, glm::vec3 playerDirection)
 {
-    float cameraDistance = 8.0f; // Jak daleko za graczem ma być kamera
-    float cameraHeight = 4.0f; // Jak wysoko nad graczem ma być kamera
+    float cameraDistance = 10.0f; // Jak daleko za graczem ma być kamera
+    float cameraHeight = 5.0f; // Jak wysoko nad graczem ma być kamera
 
     // Obliczenie pozycji kameryw
     glm::vec3 cameraPos = playerPosition - playerDirection * cameraDistance + glm::vec3(0, cameraHeight, 0);
-
+    if (cameraPos.x < -80) cameraPos.x = -80;
+    if (cameraPos.x > 80) cameraPos.x = 80;
+    if (cameraPos.z < -80) cameraPos.z = -80;
+    if (cameraPos.z > 80) cameraPos.z = 80;
     // Punkt, w którym kamera ma patrzeć (czyli pozycja gracza)
     glm::vec3 target = playerPosition;
 

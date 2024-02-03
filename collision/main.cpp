@@ -34,6 +34,7 @@ const int KEY_COUNT = 256;
 bool keyStates[KEY_COUNT];
 
 GLuint idProgram;
+GLuint multiProgram;
 
 CGround ground;
 
@@ -49,6 +50,7 @@ CMissle missle;
 int frame = 0;
 int fps = 0;
 int currentTime = 0, previousTime = 0;
+int time = 0;
 
 int score;
 
@@ -113,6 +115,14 @@ void DisplayScene()
 	RenderMinimap();
 	glViewport(0, 0, windowWidth, windowHeight);
 	matView = UpdateViewMatrix(myPlayer.Position, myPlayer.Direction);
+
+	glm::vec3 cameraPos = ExtractCameraPos(matView);
+	float y = ground.getAltitute(glm::vec2(cameraPos.x, cameraPos.z));
+	if (cameraPos.y < y + 0.5) {
+		cameraPos.y = y + 0.5;
+		matView = glm::lookAt(cameraPos, myPlayer.Position, glm::vec3(0, 1, 0));
+	}
+
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
 	matModel = glm::mat4x4( 1.0 );
@@ -140,6 +150,10 @@ void DisplayScene()
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, SkyBox_Texture);
 	glUniform1i(glGetUniformLocation(idProgram, "tex_skybox"), 1);
+
+	glUseProgram(multiProgram);
+	glUniformMatrix4fv( glGetUniformLocation( multiProgram, "matProj" ), 1, GL_FALSE, glm::value_ptr(matProj) );
+	glUniformMatrix4fv( glGetUniformLocation( multiProgram, "matView" ), 1, GL_FALSE, glm::value_ptr(matView) );
 
 	meteor.Draw();
 
@@ -225,17 +239,20 @@ void Initialize()
 	glAttachShader( idProgram, LoadShader(GL_FRAGMENT_SHADER, "fragment.glsl"));
 	LinkAndValidateProgram( idProgram );
 
+	multiProgram = glCreateProgram();
+	glAttachShader( multiProgram, LoadShader(GL_VERTEX_SHADER, "multi-vertex.glsl"));
+	glAttachShader( multiProgram, LoadShader(GL_FRAGMENT_SHADER, "fragment.glsl"));
+	LinkAndValidateProgram( multiProgram );
+
 	ground.Init();
 
-	int numberOfStones = 1; 
-	int numberOfAliens = 1;
+	int numberOfStones = 20; 
+	int numberOfAliens = 10;
     for(int i = 0; i < numberOfStones; ++i)
     {
         CSceneObject stone;
-        // float x = (rand() % 16000 / 100.0f) - 80;
-        // float z = (rand() % 16000 / 100.0f) - 80;
-		float x = -5.0f;
-		float z = -5.0f;
+        float x = (rand() % 16000 / 100.0f) - 80;
+        float z = (rand() % 16000 / 100.0f) - 80;
         float y = ground.getAltitute(glm::vec2(x, z)); 
         stone.Init("assets/stone.obj", "assets/rock.jpg");
         stone.SetPosition(glm::vec3(x, y, z));
@@ -246,10 +263,8 @@ void Initialize()
 	for(int i = 0; i < numberOfAliens; ++i)
 	{
 		CSceneObject alien;
-		// float x = (rand() % 16000 / 100.0f) - 80;
-		// float z = (rand() % 16000 / 100.0f) - 80;
-		float x = 5.0f;
-		float z = 5.0f;
+		float x = (rand() % 16000 / 100.0f) - 80;
+		float z = (rand() % 16000 / 100.0f) - 80;
 		float y = ground.getAltitute(glm::vec2(x, z)) + 2.0f; 
 		alien.Init("assets/alien.obj", "assets/alien.jpg");
 		alien.SetPosition(glm::vec3(x, y, z));
@@ -267,7 +282,7 @@ void Initialize()
 	CreateSkyBox();
 
 	__CHECK_FOR_ERRORS
-	meteor.Init("assets/meteor.obj", "assets/rock.jpg");
+	meteor.Init("assets/meteor.obj", "assets/rock.jpg", false, true);
 
 	}
 
@@ -317,7 +332,6 @@ void Keyboard( unsigned char key, int x, int y )
 
 void Animation(int frame)
 {
-	++frame;
 
     float move_vec = 0.1;
 
@@ -351,8 +365,9 @@ void Animation(int frame)
 	}
 	for(auto& alien : aliens)
 	{
-		alien.Animate(frame);
+		alien.Animate(time);
 	}
+	++frame;
 	currentTime = glutGet(GLUT_ELAPSED_TIME);
     int timeInterval = currentTime - previousTime;
     if (timeInterval > 1000) {
@@ -360,6 +375,7 @@ void Animation(int frame)
         previousTime = currentTime;
         frame = 0;
     }
+	time += 1;
 	glutTimerFunc(1000/60, Animation, frame);
 	glutPostRedisplay();
 }
